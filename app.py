@@ -78,7 +78,7 @@ def generate_single_puzzle(theme, key, p_index=1):
     }}
     """
 
-    res = client.models.generate_content(model='gemini-1.5-pro', contents=text_prompt)
+    res = client.models.generate_content(model='gemini-1.5-flash', contents=text_prompt)
     data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
 
     # KROK 2: Nano Banana (Imagen 3) nakreslí obrázek
