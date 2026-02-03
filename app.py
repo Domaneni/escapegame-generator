@@ -26,32 +26,27 @@ if 'book_theme' not in st.session_state:
     st.session_state.book_theme = ""
 
 # ==========================================
-# POMOCNÉ FUNKCE (STABILITA A BEZPEČNOST)
+# POMOCNÉ FUNKCE
 # ==========================================
 
 def sanitize_filename(text):
-    """Převede text na bezpečný název souboru (pouze alfanumerické znaky a podtržítka)."""
     clean_text = re.sub(r'[^a-zA-Z0-9]', '_', text)
-    return clean_text[:50]  # Omezení délky
+    return clean_text[:50]
 
 def extract_json_array(text):
-    """Robustně najde a extrahuje JSON pole z textu pomocí RegExu."""
     match = re.search(r'\[.*\]', text, re.DOTALL)
     if match:
         return json.loads(match.group(0))
     raise ValueError("V odpovědi AI nebylo nalezeno žádné JSON pole.")
 
 def extract_json_object(text):
-    """Robustně najde a extrahuje jeden JSON objekt."""
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         return json.loads(match.group(0))
     raise ValueError("V odpovědi AI nebyl nalezen žádný JSON objekt.")
 
-# Dekorátor @retry zajistí, že pokud volání AI spadne, počká a zkusí to znovu.
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def call_gemini_with_retry(prompt, model_name, expect_array=True):
-    """Obaluje volání Gemini o Retry logiku a bezpečnou extrakci JSONu."""
     res = client.models.generate_content(model=model_name, contents=prompt)
     if expect_array:
         return extract_json_array(res.text)
@@ -59,7 +54,7 @@ def call_gemini_with_retry(prompt, model_name, expect_array=True):
         return extract_json_object(res.text)
 
 # ==========================================
-# 2. VIZUÁLNÍ STYL A KATALOG (34 ŠIFER)
+# 2. VIZUÁLNÍ STYL A KATALOG (S UKÁZKAMI)
 # ==========================================
 MASTER_STYLE = """
 A cheerful children's book illustration in a clean vector art style.
@@ -76,69 +71,82 @@ PUZZLE_CATALOG = {
           "nadpis": "Kód k únikovému modulu",
           "zadani": "Přiřaďte každému členu posádky jeho správné vybavení. Čísla sloupců, ve kterých se nachází správné předměty, tvoří tajný čtyřmístný kód (čtěte odshora dolů):\n\n| Profese | 1 | 2 | 3 |\n| :--- | :---: | :---: | :---: |\n| Medik (Lékař) | Hasicí přístroj | **Lékárnička** | Pánev |\n| Mechanik | Mikroskop | Kniha | **Hasák** |\n| Biolog | **Rostlina** | Skafandr | Peníz |\n| Kapitán | Kytara | **Mapa vesmíru** | Rybářský prut |",
           "kod": "2312",
-          "prompt": "A clean vector illustration of a puzzle grid on a spaceship screen, similar to a clipboard. The left column has icons of astronaut heads labeled 'Medic', 'Mechanic', 'Biologist', 'Captain'. Three columns to the right are numbered 1, 2, 3 at the top. The grid cells contain various cartoon items corresponding to the text table: first aid kit, wrench, plant, map, etc. The overall style is friendly and sci-fi."
+          "prompt": "A clean vector illustration of a puzzle grid on a spaceship screen. The left column has icons of astronaut heads. Three columns to the right are numbered 1, 2, 3. The grid cells contain various items: first aid kit, wrench, plant, map."
         }
         """
     },
+    "hidden_objects": {
+        "name": "Skryté předměty (Počítání)", 
+        "instr": "IGNORUJ POKYN PRO SLOVNÍ KÓD! Zde MUSÍ být kód POUZE ČÍSLO. Počet číslic v kódu se musí rovnat počtu otázek! Do textu 'zadani' VYPIŠ OČÍSLOVANÝ SEZNAM otázek.",
+        "ukazka": """
+        {
+          "nadpis": "Ztracené hračky",
+          "zadani": "Spočítejte předměty na obrázku a získejte tajný kód:\n1. Kolik je tam medvídků?\n2. Kolik vidíš autíček?\n3. Kolik je tam balónů?",
+          "kod": "524",
+          "prompt": "A messy playroom floor with scattered toys. Specifically visible: 5 teddy bears, 2 toy cars, and 4 balloons among other items."
+        }
+        """
+    },
+    "logic_elimination": {"name": "Logická vyřazovačka", "instr": "4 dveře a 3 logické nápovědy. Zbydou jen jedny správné."},
     "fill_level": {"name": "Lektvary (Řazení)", "instr": "4 nádoby, každá jinak plná. Kód vznikne seřazením od nejplnější."},
-    "shadows": {"name": "Stínové pexeso", "instr": "4 barevné předměty a jejich 4 černé stíny (zpřeházené). Hráč je spojí."},
-    "pigpen_cipher": {"name": "Šifra symbolů", "instr": "Vymysli šifru se symboly. DŮLEŽITÉ: Místo abstraktních znaků použij JEDNODUCHÉ IKONY (např. slunce, mrak, hvězda, tlapka, list). V textu 'zadani' vypiš legendu (např. Slunce = A, Mrak = B). Do obrazového 'promptu' MUSÍŠ tyto konkrétní ikony anglicky vyjmenovat (např. 'tablet with drawings of a sun, a cloud, a star...'), aby je generátor nakreslil."},
-    "caesar": {"name": "Caesarova šifra (Posun)", "instr": "4-písmenné slovo posunuté v abecedě o +1 nebo -1 místo."},
-    "morse": {"name": "Zvuková Morseovka", "instr": "Zvířata dělají krátké (tečka) a dlouhé (čárka) zvuky. Přelož to do 4 písmen."},
-    "dirty_keypad": {"name": "Forenzní stopy", "instr": "NEKRESLI celou klávesnici. Nakresli jen 4 velká tlačítka vedle sebe. Každé je jinak silně zašpiněné od bláta. Kód je seřazení čísel od nejšpinavějšího."},
-    "diagonal_acrostic": {"name": "Diagonální čtení", "instr": "Seznam 4 jmen/míst. Kód je 1. písmeno prvního slova, 2. písmeno druhého slova atd."},
-    "mirror_writing": {"name": "Zrcadlové písmo", "instr": "Tajné čtyřpísmenné slovo napsané zrcadlově pozpátku."},
-    "matrix_indexing": {"name": "Dvojitá mřížka", "instr": "Dvě mřížky 2x2. V jedné jsou písmena, ve druhé čísla 1-4. Čti písmena v pořadí čísel."},
-    "grid_navigation": {"name": "Bludiště s šipkami", "instr": "Mřížka 4x4 s písmeny. Hráč začíná na poli a podle 3 šipek (nahoru, dolů, vlevo, vpravo) poskládá 4-písmenný kód."},
-    "camouflaged_numbers": {"name": "Maskovaná čísla v umění", "instr": "4 abstraktní obrazy. V geometrických tvarech každého obrazu je ukrytá jedna velká číslice. Kód tvoří tyto 4 číslice."},
-    "feature_filtering": {"name": "Filtrování mincí/tlačítek", "instr": "Mince různých barev a hodnot. Pod každou je písmeno. Hráč čte jen písmena pod mincemi se specifickou vlastností (např. jen stříbrné)."},
-    "size_sorting": {"name": "Porovnávání velikostí", "instr": "4 podobné předměty, každý viditelně jinak vysoký. Hráč musí vybrat např. 'druhý nejvyšší' a přečíst jeho písmena."},
-    "word_structure": {"name": "Lingvistická detektivka", "instr": "Seznam 4 cizích jmen. 3 nápovědy zaměřené na gramatiku (např. 'má přesně 2 samohlásky'). Zbyde jediné správné jméno."},
-    "composite_symbols": {"name": "Skládané symboly", "instr": "Hráč logicky odvodí, jak se cizí znaky skládají (např. znak pro 10 a znak pro 5 dají dohromady 15)."},
-    "coordinate_drawing": {"name": "Kreslení podle souřadnic", "instr": "Mřížka 5x5 s označenými sloupci a řádky. Seznam souřadnic k vybarvení. Po vybarvení vznikne na mřížce jasné číslo nebo písmeno."},
-    "tangled_lines": {"name": "Zamotaná klubka (Kabely)", "instr": "4 předměty a od nich vedou 4 velmi zamotané čáry k 4 různým písmenům. Hráč musí očima rozmotat cestu."},
-    "font_filtering": {"name": "Detektivka fontů (Typografie)", "instr": "Seznam 4 jmen. Pár písmen je viditelně JINÝM FONTEM (např. tučně, kurzívou). Kód vznikne přečtením pouze těchto odlišných písmen."},
-    "spatial_letter_mapping": {"name": "Písmena v krajině", "instr": "Velký bohatý obrázek. Jsou v něm ukryta 4 konkrétní zvířata. Těsně vedle každého zvířete je schované jedno písmeno. Kód je slovo z těchto písmen."},
-    "classic_maze": {"name": "Labyrint s více východy", "instr": "Obrázek složitého bludiště. Je v něm jeden start a 3 možné východy označené čísly 1, 2, 3. Jen jedna cesta vede ven. Správný východ je náš kód."},
-    "musical_cipher": {"name": "Hudební šifra (Noty)", "instr": "Legenda přiřazuje 5 různým hudebním notám (čtvrťová, půlová atd.) konkrétní písmena. Hráč musí podle not v obrázku přečíst tajné slovo."},
-    "picture_math": {"name": "Obrázková matematika", "instr": "Jednoduchá matematická rovnice (sčítání/odčítání), kde místo čísel jsou obrázky předmětů (např. 2 jablka + 3 hrušky). Výsledek je kód."},
-    "graph_reading": {"name": "Čtení z grafu", "instr": "Čárový graf ukazující nějakou hodnotu (např. teplotu) v různých časech. Hráč odečte číselné hodnoty v konkrétní časy a ty tvoří kód."},
-    "receipt_sorting": {"name": "Řazení podle ceny (Účtenka)", "instr": "Seznam 4 položek s různými cenami. Hráč je musí seřadit od nejdražší po nejlevnější a z jejich názvů přečíst zadaná písmena."},
-    "pair_elimination": {"name": "Vyškrtávání dvojic (Klauni)", "instr": "Obrázek plný postaviček. Téměř všechny tam mají své identické dvojče. Jen 4 postavy jsou unikátní. Písmena u těchto 4 unikátních tvoří kód."},
-    "sound_counting": {"name": "Počítání hlásek (Citoslovce)", "instr": "Obrázek s mnoha bublinami obsahujícími citoslovce smíchu nebo zvuky (HAHAHA, HEHE). Kód je celkový počet určitého písmene (např. 'A') ve všech bublinách."},
-    "nonogram": {"name": "Malovaná křížovka (Nonogram)", "instr": "Mřížka (např. 5x5). Pomocí čísel na okrajích, která říkají, kolik políček v daném řádku/sloupci vybarvit, hráč odhalí skrytý symbol nebo písmeno."},
-    "tetromino_cipher": {"name": "Tvarová šifra (Tetris)", "instr": "Legenda ukazuje několik tvarů z kostek (ve tvaru L, T, Z) a jejich písmena. V hlavním obrázku jsou tyto tvary různě pohozené a pootočené. Hráč je musí najít a přeložit."},
-    "word_search_leftover": {"name": "Osmisměrka (Zbytek písmen)", "instr": "Klasická mřížka s písmeny, ve které je ukryto 4-5 tematických slov. Po jejich vyškrtání zůstane v mřížce přesně 4-5 nevyužitých písmen, která tvoří tajný kód."},
-    "gauge_sorting": {"name": "Řazení podle měřáků/budíků", "instr": "4 přístroje (např. kotle). Každý má na sobě budík s ručičkou ukazující jinou hodnotu. Hráč stroje seřadí podle hodnot na budících a přečte z nich kód."},
-    "book_indexing": {"name": "Knižní šifra (Počítání písmen)", "instr": "Obrázek poličky se 4 knihami, každá má jasný název. Nápověda říká, kolikáté písmeno z názvu každé knihy má hráč vzít."}
+    "shadows": {"name": "Stínové pexeso", "instr": "Spojování předmětů s jejich stíny."},
+    "pigpen_cipher": {"name": "Šifra symbolů (Ikony)", "instr": "Použij jednoduché ikony (slunce, mrak...) a vypiš legendu."},
+    "caesar": {"name": "Posunutá abeceda (Caesar)", "instr": "Text zašifrovaný posunem v abecedě."},
+    "morse": {"name": "Zvuková Morseovka", "instr": "Zvířata dělají krátké a dlouhé zvuky."},
+    "dirty_keypad": {"name": "Forenzní stopy", "instr": "4 tlačítka, každé jinak špinavé. Seřaď od nejšpinavějšího."},
+    "diagonal_acrostic": {"name": "Diagonální čtení", "instr": "Seznam 4 slov. Čti diagonálně (1. písmeno 1. slova...)."},
+    "mirror_writing": {"name": "Zrcadlové písmo", "instr": "Tajné slovo napsané zrcadlově pozpátku."},
+    "matrix_indexing": {"name": "Dvojitá mřížka", "instr": "Mřížka s písmeny a mřížka s čísly."},
+    "grid_navigation": {"name": "Bludiště s šipkami", "instr": "Mřížka s písmeny a šipky navigující ke kódu."},
+    "camouflaged_numbers": {"name": "Maskovaná čísla", "instr": "Čísla ukrytá v geometrických tvarech."},
+    "feature_filtering": {"name": "Filtrování mincí", "instr": "Čtení písmen jen pod mincemi určité barvy."},
+    "size_sorting": {"name": "Porovnávání velikostí", "instr": "Seřazení předmětů podle velikosti."},
+    "word_structure": {"name": "Lingvistická detektivka", "instr": "Hledání slova podle gramatických pravidel."},
+    "composite_symbols": {"name": "Skládané symboly", "instr": "Matematika se symboly."},
+    "coordinate_drawing": {"name": "Kreslení souřadnic", "instr": "Vybarvi A1, B2... a vznikne písmeno."},
+    "tangled_lines": {"name": "Zamotaná klubka", "instr": "Sleduj čáry od předmětů k písmenům."},
+    "font_filtering": {"name": "Detektivka fontů", "instr": "Čti jen tučná písmena."},
+    "spatial_letter_mapping": {"name": "Písmena v krajině", "instr": "Písmena schovaná vedle zvířat."},
+    "classic_maze": {"name": "Labyrint", "instr": "Bludiště s očíslovanými východy."},
+    "musical_cipher": {"name": "Hudební šifra", "instr": "Noty jako písmena."},
+    "picture_math": {"name": "Obrázková matematika", "instr": "Rovnice s obrázky (2 jablka + 1 hruška)."},
+    "graph_reading": {"name": "Čtení z grafu", "instr": "Odečti hodnoty z grafu."},
+    "receipt_sorting": {"name": "Účtenka", "instr": "Seřaď položky podle ceny."},
+    "pair_elimination": {"name": "Klauni (Dvojice)", "instr": "Najdi postavy, které nemají dvojče."},
+    "sound_counting": {"name": "Počítání hlásek", "instr": "Spočítej všechna písmena A v bublinách."},
+    "nonogram": {"name": "Nonogram", "instr": "Malovaná křížovka s čísly na okrajích."},
+    "tetromino_cipher": {"name": "Tetris šifra", "instr": "Dílky tetrisu s písmeny."},
+    "word_search_leftover": {"name": "Osmisměrka (Zbytek)", "instr": "Písmena, která zbydou po vyškrtání slov."},
+    "gauge_sorting": {"name": "Měřáky a budíky", "instr": "Seřaď stroje podle hodnot na budících."},
+    "book_indexing": {"name": "Knižní šifra", "instr": "Vezmi X-té písmeno z názvu knihy."}
 }
 
-st.title("📚 Tvůrce celých Únikovek (v1.2 Finální Knižní Editor)")
+st.title("📚 Tvůrce celých Únikovek (v1.3 S inteligentními šablonami)")
 
 # ==========================================
-# KROK 1: VÝBĚR ŠIFER PRO CELOU KNIHU
+# KROK 1: VÝBĚR ŠIFER A GENEROVÁNÍ
 # ==========================================
 st.header("Krok 1: Sestavení knihy")
 
-tema = st.text_input("Společné téma celé únikovky (např. Záchrana továrny na čokoládu):", "Čokoláda")
+tema = st.text_input("Společné téma (např. Vesmírná stanice):", "Vesmír")
 
 mod_vyberu = st.radio(
     "Jak chceš vybrat šifry?",
-    ["🤖 Automaticky (Nechám AI vybrat nejlepší šifry pro můj příběh)", "✋ Manuálně (Vyberu si přesný seznam sám)"]
+    ["🤖 Automaticky (AI vybere nejlepší mix)", "✋ Manuálně (Vyberu si sám)"]
 )
 
 if mod_vyberu.startswith("✋"):
     vybrane_klicky = st.multiselect(
-        "Vyber šifry pro svou knihu (v pořadí, jak půjdou za sebou):",
+        "Vyber šifry:",
         list(PUZZLE_CATALOG.keys()),
         format_func=lambda x: PUZZLE_CATALOG[x]['name']
     )
     pocet_sifer = len(vybrane_klicky)
 else:
-    pocet_sifer = st.slider("Kolik šifer (stran) má příběh mít?", min_value=3, max_value=12, value=6)
+    pocet_sifer = st.slider("Počet stran:", 3, 12, 6)
     vybrane_klicky = []
 
-propojit_pribeh = st.checkbox("📖 Propojit šifry do jednoho souvislého příběhu (odškrtni pro nezávislé šifry)", value=True)
+propojit_pribeh = st.checkbox("📖 Propojit do příběhu", value=True)
 
 if st.button("🧠 Vymyslet zadání", type="primary"):
     
@@ -149,22 +157,39 @@ if st.button("🧠 Vymyslet zadání", type="primary"):
         st.session_state.book_theme = tema
         st.session_state.book_data = []
         
-        # --- VARIANTA A: JEDEN SOUVISLÝ PŘÍBĚH ---
+        # --- VARIANTA A: PŘÍBĚH ---
         if propojit_pribeh:
-            with st.spinner(f"Gemini píše příběh a chytře do něj zakomponovává {pocet_sifer} šifer..."):
-                mechanics_list = "\n".join([f"Strana {i+1}: {PUZZLE_CATALOG[k]['name']} (Pravidlo: {PUZZLE_CATALOG[k]['instr']})" for i, k in enumerate(vybrane_klicky)])
+            with st.spinner(f"Píšu příběh a aplikuji šablony na {pocet_sifer} šifer..."):
+                
+                # ZDE JE TA MAGIE: Sestavení promptu s ukázkami
+                mechanics_list_parts = []
+                for i, k in enumerate(vybrane_klicky):
+                    puz = PUZZLE_CATALOG[k]
+                    # Základní popis
+                    item_text = f"Strana {i+1}: {puz['name']}\nPravidlo: {puz['instr']}"
+                    
+                    # POKUD EXISTUJE UKÁZKA, PŘIDÁME JI
+                    if "ukazka" in puz:
+                        item_text += f"\n❗ DŮLEŽITÉ: PRO TUTO STRANU MUSÍŠ PŘESNĚ DODRŽET STRUKTURU TOHOTO VZORU (JSON):\n{puz['ukazka']}"
+                    
+                    mechanics_list_parts.append(item_text)
+
+                mechanics_list = "\n\n".join(mechanics_list_parts)
                 
                 master_prompt = f"""
-                Jsi mistrný vypravěč a tvůrce dětských únikových knih. Téma: "{tema}".
-                Vytvoř ucelený a napínavý příběh pro knihu o {pocet_sifer} stranách. Děj musí logicky navazovat. Vymysli hlavního hrdinu.
-                Seznam šifer pro jednotlivé strany v přesném pořadí:
+                Jsi mistrný vypravěč. Téma: "{tema}".
+                Vytvoř knihu o {pocet_sifer} stranách.
+                
+                SEZNAM ŠIFER A JEJICH PŘESNÉ ŠABLONY:
                 {mechanics_list}
-                DŮLEŽITÉ: Obrazové prompty musí dodržet tento styl: {MASTER_STYLE}
+                
+                DŮLEŽITÉ: Obrazové prompty musí dodržet styl: {MASTER_STYLE}
+                
                 Vrať POUZE validní JSON pole objektů: [{{ 
                     "nadpis": "...", 
-                    "zadani": "Poutavý kousek příběhu a zadání (česky). Logika hádanky musí přesně odpovídat tajnému kódu.", 
-                    "kod": "TEMATICKÉ SLOVO (3-8 znaků. VŽDY existující české slovo nebo číslo související s tématem, např. 'KLIC', 'LEKTVAR'. ŽÁDNÁ náhodná změť písmen!)", 
-                    "prompt": "Anglický prompt pro ilustraci" 
+                    "zadani": "Text zadání (pokud má šifra vzorovou tabulku nebo seznam, použij ji!)", 
+                    "kod": "Tajné slovo/číslo (3-8 znaků)", 
+                    "prompt": "Anglický prompt" 
                 }}, ...]
                 """
                 try:
@@ -172,69 +197,65 @@ if st.button("🧠 Vymyslet zadání", type="primary"):
                     for i, item in enumerate(story_data):
                         item["type_name"] = PUZZLE_CATALOG[vybrane_klicky[i]]["name"]
                     st.session_state.book_data = story_data
-                    st.success("✅ Hotovo! Zadání je připravené.")
+                    st.success("✅ Hotovo! Příběh je napsaný přesně podle šablon.")
                 except Exception as e:
-                    st.error(f"❌ Selhalo generování příběhu. Zkuste to znovu. (Chyba: {e})")
+                    st.error(f"❌ Chyba: {e}")
 
         # --- VARIANTA B: NEZÁVISLÉ ŠIFRY ---
         else:
             progress_bar = st.progress(0)
-            with st.spinner("Gemini vymýšlí nezávislé hádanky..."):
+            with st.spinner("Generuji nezávislé hádanky..."):
                 for idx, key in enumerate(vybrane_klicky):
                     template = PUZZLE_CATALOG[key]
+                    
+                    # PŘÍPRAVA UKÁZKY PRO JEDNOTLIVOU ŠIFRU
+                    vzor_text = ""
+                    if "ukazka" in template:
+                        vzor_text = f"\n❗ DŮLEŽITÉ: VÝSTUP MUSÍ PŘESNĚ KOPÍROVAT TENTO JSON VZOR:\n{template['ukazka']}"
+
                     text_prompt = f"""
-                    Jsi tvůrce dětských únikovek. Téma: {tema}. Typ šifry: {template['instr']}
-                    DŮLEŽITÉ: Obrazový prompt musí dodržet styl: {MASTER_STYLE}
-                    Vrať POUZE validní JSON objekt: {{
-                        "nadpis": "...", 
-                        "zadani": "Kratky text pro hrace (cesky). Logika hádanky musí přesně odpovídat tajnému kódu.", 
-                        "kod": "TEMATICKÉ SLOVO (3-8 znaků. VŽDY existující české slovo nebo číslo související s tématem, např. 'KLIC', 'POKLAD'. ŽÁDNÁ náhodná změť písmen!)", 
-                        "prompt": "Anglický prompt"
-                    }}
+                    Téma: {tema}. Typ šifry: {template['instr']}
+                    {vzor_text}
+                    
+                    Styl obrázků: {MASTER_STYLE}
+                    Vrať POUZE validní JSON objekt.
                     """
                     try:
                         data = call_gemini_with_retry(text_prompt, 'gemini-2.5-flash-lite', expect_array=False)
                         data["type_name"] = template["name"]
                         st.session_state.book_data.append(data)
                     except Exception as e:
-                        st.error(f"⚠️ Strana {idx+1} ({template['name']}) selhala a byla přeskočena.")
+                        st.error(f"⚠️ Strana {idx+1} selhala.")
                     
                     progress_bar.progress((idx + 1) / len(vybrane_klicky))
-            st.success("✅ Hotovo! Zadání je připravené.")
+            st.success("✅ Hotovo!")
             
         st.rerun()
-    else:
-        st.warning("⚠️ V manuálním režimu musíš vybrat alespoň jednu šifru.")
 
 # ==========================================
-# KROK 2: NAHRÁNÍ OBRÁZKŮ A GENEROVÁNÍ PDF
+# KROK 2: PDF
 # ==========================================
 if st.session_state.book_data:
     st.markdown("---")
-    st.header("Krok 2: Nahrání obrázků a tvorba PDF")
-    st.info("💡 U každé šifry si můžeš vybrat: Buď nahraješ obrázek, nebo políčko necháš prázdné a do PDF se vloží jen text.")
+    st.header("Krok 2: Tvorba PDF")
     
     uploaded_images = {}
-
     for i, puz in enumerate(st.session_state.book_data):
-        with st.expander(f"Strana {i+1}: {puz['nadpis']} ({puz.get('type_name', 'Neznámý typ')})", expanded=True):
-            st.markdown(f"**Zadání:** {puz['zadani']}")
-            st.code(puz["prompt"], language="markdown")
+        with st.expander(f"Strana {i+1}: {puz['nadpis']}", expanded=True):
+            st.markdown(f"**Zadání:**\n{puz['zadani']}") 
+            # Pozn: Markdown v zadani (tabulky) se v UI zobrazí hezky, v PDF musíme spoléhat na čistý text/strukturu
             
-            img = st.file_uploader(f"Nahraj obrázek pro Stranu {i+1} (volitelné)", type=["png", "jpg", "jpeg"], key=f"img_{i}")
+            img = st.file_uploader(f"Obrázek {i+1}", key=f"img_{i}")
             uploaded_images[i] = img
-            if img:
-                st.image(img, width=200)
+            if img: st.image(img, width=200)
 
-    if st.button("✨ Vytvořit finální Knihu (PDF)", type="primary"):
-        with st.spinner("Sestavuji knihu..."):
-            
-            # --- PŘÍPRAVA PÍSMA (Lokální, Bezpečné) ---
+    if st.button("✨ Stáhnout PDF", type="primary"):
+        with st.spinner("Tisknu PDF..."):
             font_path = "fonts/DejaVuSans.ttf"
             font_bold_path = "fonts/DejaVuSans-Bold.ttf"
             
-            if not os.path.exists(font_path) or not os.path.exists(font_bold_path):
-                st.error("❌ Chybí soubory fontů! Vytvořte v projektu složku 'fonts' a nahrajte do ní DejaVuSans.ttf a DejaVuSans-Bold.ttf.")
+            if not os.path.exists(font_path):
+                st.error("❌ Chybí fonty ve složce 'fonts'!")
                 st.stop()
 
             pdf = FPDF()
@@ -247,40 +268,36 @@ if st.session_state.book_data:
                 pdf.cell(0, 15, puz['nadpis'], ln=True, align="C")
                 
                 pdf.set_font("DejaVu", "", 12)
-                pdf.multi_cell(0, 8, puz['zadani'], align="C")
+                # Ošetření tabulek pro PDF (zjednodušené vykreslování)
+                # Pokud je v textu Markdown tabulka, FPDF ji neumí přímo.
+                # Prozatím ji vypíšeme jako text, ale díky zarovnání v 'ukázce' bude čitelná.
+                clean_text = puz['zadani'].replace("**", "") # Odstraníme tučné značky z markdownu
+                pdf.multi_cell(0, 8, clean_text, align="C")
+                
                 aktualni_y = pdf.get_y() + 5
                 
                 img_file = uploaded_images.get(i)
-                if img_file is not None:
-                    temp_img_path = f"temp_img_{i}.png"
-                    with open(temp_img_path, "wb") as f:
-                        f.write(img_file.getbuffer())
-                    
-                    pdf.image(temp_img_path, x=45, y=aktualni_y, w=120)
-                    konec_obsahu_y = aktualni_y + 120 + 10
-                    os.remove(temp_img_path) 
+                if img_file:
+                    temp_img = f"temp_{i}.png"
+                    with open(temp_img, "wb") as f: f.write(img_file.getbuffer())
+                    pdf.image(temp_img, x=45, y=aktualni_y, w=120)
+                    os.remove(temp_img)
+                    y_pos = aktualni_y + 130
                 else:
-                    konec_obsahu_y = aktualni_y + 20 
+                    y_pos = aktualni_y + 20
 
-                # 4. TAJNÝ KÓD (Dynamická délka podle tajenky)
-                pdf.set_xy(10, konec_obsahu_y)
+                pdf.set_xy(10, y_pos)
                 pdf.set_font("DejaVu", "B", 16)
-                
-                # Zjistíme délku kódu a vygenerujeme správný počet chlívečků
-                delka_kodu = len(str(puz['kod']))
-                chlivecky = " ".join(["[   ]"] * delka_kodu)
-                
-                pdf.cell(0, 10, f"TAJNÝ KÓD: {chlivecky}", ln=True, align="C")
+                delka = len(str(puz['kod']))
+                chlivecky = " ".join(["[   ]"] * delka)
+                pdf.cell(0, 10, f"KÓD: {chlivecky}", ln=True, align="C")
                 
                 pdf.set_xy(10, 270)
                 pdf.set_font("DejaVu", "", 8)
-                pdf.cell(0, 10, f"Strana {i+1} | Řešení: {puz['kod']} ({puz.get('type_name', '')})", ln=True)
+                pdf.cell(0, 10, f"Řešení: {puz['kod']}", ln=True)
 
-            # --- ULOŽENÍ A SANITIZACE NÁZVU ---
-            bezpecne_tema = sanitize_filename(st.session_state.book_theme)
-            pdf_name = f"Unikovka_{bezpecne_tema}.pdf"
+            pdf_name = f"Unikovka_{sanitize_filename(st.session_state.book_theme)}.pdf"
             pdf.output(pdf_name)
             
-            st.success("🎉 Tvoje kniha je hotová!")
             with open(pdf_name, "rb") as f:
-                st.download_button("📥 Stáhnout celou knihu", f, file_name=pdf_name, mime="application/pdf")
+                st.download_button("📥 Stáhnout PDF", f, file_name=pdf_name)
