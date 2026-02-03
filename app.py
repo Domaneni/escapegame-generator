@@ -7,6 +7,8 @@ import os
 import time
 import urllib.parse
 import urllib.request
+import io
+from PIL import Image, ImageDraw
 
 # ==========================================
 # 1. NASTAVENÍ A ZABEZPEČENÍ APLIKACE
@@ -15,12 +17,10 @@ st.set_page_config(page_title="Továrna na Únikovky", page_icon="🧩")
 
 heslo = st.sidebar.text_input("Zadej heslo pro vstup:", type="password")
 
-# Ochrana: Aplikace se nespustí, dokud nezadáš heslo z trezoru
 if heslo != st.secrets["APP_PASSWORD"]:
     st.warning("🔒 Zadej správné heslo v levém panelu pro spuštění generátoru.")
     st.stop()
 
-# Načtení API klíče z trezoru pro textového Geminiho
 API_KEY = st.secrets["GOOGLE_API_KEY"]
 client = genai.Client(api_key=API_KEY)
 
@@ -52,12 +52,11 @@ PUZZLE_CATALOG = {
 }
 
 # ==========================================
-# 4. AI MOZEK (GEMINI + ODOLNÝ KRESLÍŘ)
+# 4. AI MOZEK (GEMINI + BEZPEČNÝ KRESLÍŘ)
 # ==========================================
 def generate_single_puzzle(theme, key, p_index=1):
     template = PUZZLE_CATALOG[key]
     
-    # KROK 1: Zde začíná text_prompt (tři uvozovky na začátku)
     text_prompt = f"""
     Jsi tvůrce dětských únikovek. Téma: {theme}.
     Typ šifry: {template['instr']}
@@ -72,31 +71,42 @@ def generate_single_puzzle(theme, key, p_index=1):
       "prompt": "Detailní anglický prompt popisující scénu a počty předmětů, který ZAHRNUJE všechna pravidla stylu výše."
     }}
     """
-    # KROK 1: Zde končí text_prompt (tři uvozovky na konci)
     
-    # Použití nejnovějšího bezplatného textového modelu pro rok 2026
+    # 1. GENERACE TEXTU
     res = client.models.generate_content(model='gemini-2.5-flash', contents=text_prompt)
     data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
     
-    # KROK 2: Kreslíř (Pollinations.ai) s OCHRANOU PROTI SPADNUTÍ SERVERU
+    # 2. BEZPEČNÉ STAŽENÍ OBRÁZKU
     safe_prompt = urllib.parse.quote(data["prompt"])
     image_url = f"https://pollinations.ai/p/{safe_prompt}?width=512&height=512&nologo=true"
     img_path = f'temp_{p_index}.png'
     
-    # Maskování: Tváříme se jako běžný prohlížeč (řeší chybu 403 Forbidden)
     req = urllib.request.Request(
         image_url, 
         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     )
     
-    # Pokus o stažení obrázku se záchrannou sítí (řeší chybu 502 Bad Gateway)
+    valid_image = False
     try:
-        with urllib.request.urlopen(req, timeout=15) as response, open(img_path, 'wb') as out_file:
-            out_file.write(response.read())
+        # Pokus o stažení
+        with urllib.request.urlopen(req, timeout=15) as response:
+            img_data = response.read()
+            # KONTROLA: Zkusíme to otevřít jako obrázek. Pokud je to HTML chyba, tady to spadne.
+            img = Image.open(io.BytesIO(img_data))
+            img.verify() 
+            # Pokud jsme tady, obrázek je 100% v pořádku
+            with open(img_path, 'wb') as f:
+                f.write(img_data)
+            valid_image = True
     except Exception as e:
-        print(f"Server pro obrázky má výpadek: {e}")
-        # ZÁLOŽNÍ PLÁN: Pokud AI kreslíř spadne, vložíme aspoň zástupný obrázek, ať nepadne celá appka
-        urllib.request.urlretrieve("https://placehold.co/512x512/png?text=Obrazek+se+generuje", img_path)
+        print(f"Internet selhal: {e}")
+
+    # ZÁLOŽNÍ PLÁN: Pokud se obrázek nestáhl, Python sám nakreslí šedý čtverec. Nikdy nespadne.
+    if not valid_image:
+        img = Image.new('RGB', (512, 512), color=(200, 200, 200))
+        d = ImageDraw.Draw(img)
+        d.text((100, 250), "Obrazek se nepodarilo nacist ze serveru", fill=(0,0,0))
+        img.save(img_path)
         
     return data, img_path
 
@@ -105,7 +115,6 @@ def generate_single_puzzle(theme, key, p_index=1):
 # ==========================================
 st.title("🧩 Továrna na Únikovky (Free Edition 2026)")
 
-# Formulář
 tema = st.text_input("Jaké téma si přeješ? (např. Škola kouzel, Piráti):", "Piráti")
 
 typy = {"Náhodný výběr 🎲": "random"}
@@ -114,12 +123,10 @@ vyber = st.selectbox("Vyber typ šifry:", list(typy.keys()))
 
 cele_pdf = st.checkbox("📚 Vytvořit celou knihu (4 náhodné šifry za sebou)")
 
-# Tlačítko Generovat
 if st.button("✨ Vytvořit PDF", type="primary"):
     with st.spinner("Pracuji na tom! Gemini vymýšlí a kreslíř maluje..."):
         pdf = FPDF()
         
-        # Určení počtu stran
         to_generate = []
         if cele_pdf:
             to_generate = random.sample(list(PUZZLE_CATALOG.keys()), 4)
@@ -127,12 +134,10 @@ if st.button("✨ Vytvořit PDF", type="primary"):
             k = typy[vyber] if typy[vyber] != "random" else random.choice(list(PUZZLE_CATALOG.keys()))
             to_generate = [k]
 
-        # Generování stránek do jednoho PDF
         for i, key in enumerate(to_generate):
             data, img_path = generate_single_puzzle(tema, key, i)
             
             pdf.add_page()
-            # Čištění diakritiky (pro jistotu, kdyby AI zapomněla)
             clean_title = data['nadpis'].encode('ascii', 'ignore').decode()
             clean_text = data['zadani'].encode('ascii', 'ignore').decode()
             
@@ -149,7 +154,7 @@ if st.button("✨ Vytvořit PDF", type="primary"):
             pdf.cell(0, 10, f"Reseni: {data['kod']} (Typ: {PUZZLE_CATALOG[key]['name']})")
             
             os.remove(img_path)
-            time.sleep(1) # Malá pauza pro stabilitu API
+            time.sleep(1) 
             
         pdf_name = f"Unikovka_{tema}.pdf"
         pdf.output(pdf_name)
