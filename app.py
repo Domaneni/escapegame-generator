@@ -68,7 +68,18 @@ Clean solid white background. NO shadows, NO gradients, NO realism.
 """
 
 PUZZLE_CATALOG = {
-    "matching": {"name": "Přiřazování předmětů", "instr": "Spojování souvisejících dvojic. PRAVIDLO: Počet dvojic = délka tajného slova. NEPOPISUJ JEN PRAVIDLA, ALE ROVNOU VYTVOŘ HÁDANKU! Do textu 'zadani' MUSÍŠ PŘÍMO VYPSAT dva sloupce pod sebe. Vzor: 'KDO: 1. Hasič, 2. Kuchař... CO POTŘEBUJÍ: Vařečka (Písmeno E), Hadice (Písmeno L)...'. K jednomu sloupci přiřaď písmena z tajného kódu tak, aby po správném spojení vzniklo tajné slovo. Hráč to musí umět vyřešit POUZE z tohoto textu! Do anglického 'promptu' vypiš všechny tyto předměty pro ilustrátora."},    "hidden_objects": {"name": "Skryté předměty (Počítání)", "instr": "Počítání věcí na obrázku. IGNORUJ POKYN PRO SLOVNÍ KÓD! Tady MUSÍ být kód POUZE ČÍSLO (např. '243'). Počet číslic = počet otázek v zadání. Do textu 'zadani' VYPIŠ očíslovaný seznam: 1. Kolik je X? 2. Kolik je Y? 3. Kolik je Z? (Tím vznikne třímístný kód). Do anglického 'promptu' pro obrázek přesně vypiš počty těchto předmětů (např. 2 wheels, 4 cones, 3 bricks), aby je ilustrátor nakreslil správně."},
+    "matching": {
+        "name": "Přiřazování v tabulce (Grid Matching)", 
+        "instr": "IGNORUJ POKYN PRO SLOVNÍ KÓD! Zde MUSÍ být kód POUZE ČÍSLO (např. '2314'). Počet číslic v kódu určuje počet řádků tabulky. NEPOPISUJ PRAVIDLA, VYTVOŘ TABULKU! Do textu 'zadani' vykresli pomocí Markdownu tabulku. První sloupec jsou postavy/profese. Další 3 sloupce (hlavičky 1, 2, 3) obsahují předměty. V každém řádku je právě jeden správný předmět, jehož číslo sloupce odpovídá číslici v tajném kódu.",
+        "ukazka": """
+        {
+          "nadpis": "Kód k únikovému modulu",
+          "zadani": "Přiřaďte každému členu posádky jeho správné vybavení. Čísla sloupců, ve kterých se nachází správné předměty, tvoří tajný čtyřmístný kód (čtěte odshora dolů):\n\n| Profese | 1 | 2 | 3 |\n| :--- | :---: | :---: | :---: |\n| Medik (Lékař) | Hasicí přístroj | **Lékárnička** | Pánev |\n| Mechanik | Mikroskop | Kniha | **Hasák** |\n| Biolog | **Rostlina** | Skafandr | Peníz |\n| Kapitán | Kytara | **Mapa vesmíru** | Rybářský prut |",
+          "kod": "2312",
+          "prompt": "A clean vector illustration of a puzzle grid on a spaceship screen, similar to a clipboard. The left column has icons of astronaut heads labeled 'Medic', 'Mechanic', 'Biologist', 'Captain'. Three columns to the right are numbered 1, 2, 3 at the top. The grid cells contain various cartoon items corresponding to the text table: first aid kit, wrench, plant, map, etc. The overall style is friendly and sci-fi."
+        }
+        """
+    },
     "fill_level": {"name": "Lektvary (Řazení)", "instr": "4 nádoby, každá jinak plná. Kód vznikne seřazením od nejplnější."},
     "shadows": {"name": "Stínové pexeso", "instr": "4 barevné předměty a jejich 4 černé stíny (zpřeházené). Hráč je spojí."},
     "pigpen_cipher": {"name": "Šifra symbolů", "instr": "Vymysli šifru se symboly. DŮLEŽITÉ: Místo abstraktních znaků použij JEDNODUCHÉ IKONY (např. slunce, mrak, hvězda, tlapka, list). V textu 'zadani' vypiš legendu (např. Slunce = A, Mrak = B). Do obrazového 'promptu' MUSÍŠ tyto konkrétní ikony anglicky vyjmenovat (např. 'tablet with drawings of a sun, a cloud, a star...'), aby je generátor nakreslil."},
