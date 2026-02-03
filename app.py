@@ -135,7 +135,7 @@ if st.button("🧠 Vymyslet zadání", type="primary"):
                 DŮLEŽITÉ: Obrazové prompty musí dodržet tento styl: {MASTER_STYLE}
                 Vrať POUZE JSON pole objektů: [{{ "nadpis": "...", "zadani": "Poutavý kousek příběhu a zadání (česky)", "kod": "1234", "prompt": "Anglický prompt pro ilustraci" }}, ...]
                 """
-                res = client.models.generate_content(model='gemini-flash-latest', contents=master_prompt)
+                res = client.models.generate_content(model='gemini-2.5-flash-lite', contents=master_prompt)
                 story_data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
                 
                 for i, item in enumerate(story_data):
@@ -153,7 +153,7 @@ if st.button("🧠 Vymyslet zadání", type="primary"):
                     DŮLEŽITÉ: Obrazový prompt musí dodržet styl: {MASTER_STYLE}
                     Vrať POUZE JSON formát: {{"nadpis": "...", "zadani": "Kratky text pro hrace (cesky)", "kod": "1234", "prompt": "Anglický prompt"}}
                     """
-                    res = client.models.generate_content(model='gemini-flash-latest', contents=text_prompt)
+                    res = client.models.generate_content(model='gemini-2.5-flash-lite', contents=text_prompt)
                     data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
                     data["type_name"] = template["name"]
                     st.session_state.book_data.append(data)
