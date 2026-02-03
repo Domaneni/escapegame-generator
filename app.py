@@ -43,7 +43,7 @@ PUZZLE_CATALOG = {
     "hidden_objects": {"name": "Skryté předměty v obraze", "instr": "Hledání 4 různých druhů předmětů v rušném obraze. Kód je jejich přesný počet."},
     "fill_level": {"name": "Lektvary (Řazení podle plnosti)", "instr": "4 nádoby, každá jinak plná. Kód vznikne seřazením od nejplnější."},
     "shadows": {"name": "Stínové pexeso", "instr": "4 barevné předměty a jejich 4 černé stíny (zpřeházené). Hráč je spojí."},
-    "pigpen_cipher": {"name": "Zednářská šifra (Tajné symboly)", "instr": "Kód je zapsaný v geometrických znacích (křížky/ohrádky s tečkami). Přilož legendu pro rozluštění."},
+    "pigpen_cipher": {"name": "Zednářská šifra (Tajné symboly)", "instr": "Vymysli šifru se symboly. DŮLEŽITÉ: Do textu 'zadani' MUSÍŠ přímo vypsat textovou legendu pro děti (např. Čtvereček s tečkou = 1, Trojúhelník = 2, atd.). Obrazový prompt ať generuje jen 'starou kamennou desku s vytesanými záhadnými znaky'."},
     "caesar": {"name": "Caesarova šifra (Posun)", "instr": "4-písmenné slovo posunuté v abecedě o +1 nebo -1 místo."},
     "morse": {"name": "Zvuková Morseovka", "instr": "Zvířata dělají krátké (tečka) a dlouhé (čárka) zvuky. Přelož to do 4 písmen."},
     "dirty_keypad": {"name": "Forenzní stopy (Špinavá klávesnice)", "instr": "Obrázek číselníku. 4 klávesy jsou špinavé od bláta. Kód vznikne seřazením od nejšpinavější po nejčistší."},
