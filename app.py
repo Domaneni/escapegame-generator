@@ -83,7 +83,7 @@ def generate_single_puzzle(theme, key, p_index=1):
 
     # KROK 2: Nano Banana (Imagen 3) nakreslí obrázek
     img_res = client.models.generate_images(
-        model='imagen-3.0-generate-001',
+        model='imagen-3.0-generate-002',
         prompt=data["prompt"],
         config=genai.types.GenerateImagesConfig(number_of_images=1, aspect_ratio="1:1")
     )
