@@ -124,27 +124,37 @@ if st.session_state.puzzle_data:
                     f.write(uploaded_file.getbuffer())
 
                 # --- TVORBA PDF ---
+                # --- TVORBA PDF (Chytré rozložení) ---
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.add_font("DejaVu", "", font_path)
                 pdf.add_font("DejaVu", "B", font_bold_path)
                 
-                # Zápis do PDF
+                # 1. NADPIS
                 pdf.set_font("DejaVu", "B", 20)
                 pdf.cell(0, 15, st.session_state.puzzle_data['nadpis'], ln=True, align="C")
+                
+                # 2. TEXT ZADÁNÍ (může být libovolně dlouhý)
                 pdf.set_font("DejaVu", "", 12)
                 pdf.multi_cell(0, 8, st.session_state.puzzle_data['zadani'], align="C")
-                pdf.image(img_path, x=30, y=50, w=150)
                 
-                pdf.set_xy(80, 220)
+                # 3. OBRÁZEK (Dynamicky se umístí 5 mm pod konec textu)
+                aktualni_y = pdf.get_y() + 5
+                # Obrázek trochu zmenšíme (šířka 120 mm) a vycentrujeme (X = 45)
+                pdf.image(img_path, x=45, y=aktualni_y, w=120) 
+                
+                # 4. TAJNÝ KÓD (Umístí se 10 mm pod obrázek)
+                konec_obrazku_y = aktualni_y + 120 + 10 
+                pdf.set_xy(10, konec_obrazku_y)
                 pdf.set_font("DejaVu", "B", 16)
-                pdf.cell(0, 10, "TAJNÝ KÓD: [   ] [   ] [   ] [   ]", ln=True)
+                pdf.cell(0, 10, "TAJNÝ KÓD: [   ] [   ] [   ] [   ]", ln=True, align="C")
                 
+                # 5. ŘEŠENÍ PRO RODIČE (Úplně dole na stránce)
                 pdf.set_xy(10, 270)
                 pdf.set_font("DejaVu", "", 8)
                 pdf.cell(0, 10, f"Řešení: {st.session_state.puzzle_data['kod']} (Typ: {st.session_state.puzzle_data['type_name']})", ln=True)
                 
-                # Uložení
+                # --- ULOŽENÍ ---
                 pdf_name = f"Unikovka_{st.session_state.theme}.pdf"
                 pdf.output(pdf_name)
                 
