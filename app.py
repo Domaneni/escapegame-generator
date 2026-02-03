@@ -244,6 +244,8 @@ if st.session_state.book_data:
         with st.expander(f"Strana {i+1}: {puz['nadpis']}", expanded=True):
             st.markdown(f"**Zadání:**\n{puz['zadani']}") 
             # Pozn: Markdown v zadani (tabulky) se v UI zobrazí hezky, v PDF musíme spoléhat na čistý text/strukturu
+
+            st.code(puz["prompt"], language="markdown")
             
             img = st.file_uploader(f"Obrázek {i+1}", key=f"img_{i}")
             uploaded_images[i] = img
