@@ -77,12 +77,20 @@ def generate_single_puzzle(theme, key, p_index=1):
     res = client.models.generate_content(model='gemini-2.5-flash', contents=text_prompt)
     data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
     
-    # KROK 2: Alternativní bezplatný kreslíř (Pollinations.ai) obejde placený Google Imagen
+# KROK 2: Alternativní bezplatný kreslíř (Pollinations.ai) s maskováním
     safe_prompt = urllib.parse.quote(data["prompt"])
     image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=512&height=512&nologo=true"
-    
     img_path = f'temp_{p_index}.png'
-    urllib.request.urlretrieve(image_url, img_path)
+    
+    # Maskování: Tváříme se jako běžný Google Chrome na Windows
+    req = urllib.request.Request(
+        image_url, 
+        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    )
+    
+    # Bezpečné stažení obrázku
+    with urllib.request.urlopen(req) as response, open(img_path, 'wb') as out_file:
+        out_file.write(response.read())
         
     return data, img_path
 
