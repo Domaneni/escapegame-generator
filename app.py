@@ -132,12 +132,13 @@ cele_pdf = st.checkbox("📚 Vytvořit celou knihu (4 náhodné šifry za sebou)
 if st.button("✨ Vytvořit PDF", type="primary"):
     with st.spinner("Pracuji na tom! Gemini vymýšlí a kreslíř maluje..."):
         
-        # --- STAŽENÍ ČESKÉHO PÍSMA (pokud ho ještě nemáme) ---
+        # --- STAŽENÍ ČESKÉHO PÍSMA (ze stabilního zdroje) ---
         font_path = "DejaVuSans.ttf"
         font_bold_path = "DejaVuSans-Bold.ttf"
         if not os.path.exists(font_path):
-            urllib.request.urlretrieve("https://github.com/matomo-org/travis-scripts/raw/master/fonts/DejaVuSans.ttf", font_path)
-            urllib.request.urlretrieve("https://github.com/matomo-org/travis-scripts/raw/master/fonts/DejaVuSans-Bold.ttf", font_bold_path)
+            # Používáme stabilní odkazy z oficiálního repozitáře Matplotlib
+            urllib.request.urlretrieve("https://raw.githubusercontent.com/matplotlib/matplotlib/main/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf", font_path)
+            urllib.request.urlretrieve("https://raw.githubusercontent.com/matplotlib/matplotlib/main/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSans-Bold.ttf", font_bold_path)
 
         # --- NASTAVENÍ PDF S PODPOROU ČEŠTINY ---
         pdf = FPDF()
