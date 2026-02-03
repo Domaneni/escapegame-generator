@@ -6,23 +6,85 @@ import os
 import urllib.request
 
 # ==========================================
-# 1. NASTAVENÍ A ZABEZPEČENÍ APLIKACE
+# KROK 1: VÝBĚR ŠIFER PRO CELOU KNIHU
 # ==========================================
-st.set_page_config(page_title="Továrna na Únikovky", page_icon="🧩", layout="wide")
+st.header("Krok 1: Sestavení knihy")
 
-heslo = st.sidebar.text_input("Zadej heslo pro vstup:", type="password")
-if heslo != st.secrets["APP_PASSWORD"]:
-    st.warning("🔒 Zadej správné heslo v levém panelu pro spuštění generátoru.")
-    st.stop()
+tema = st.text_input("Společné téma celé únikovky (např. Záchrana továrny na čokoládu):", "Čokoláda")
 
-# Načtení API klíče
-client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
+# NOVINKA: Volba režimu výběru
+mod_vyberu = st.radio(
+    "Jak chceš vybrat šifry?",
+    ["🤖 Automaticky (Nechám AI vybrat nejlepší šifry pro můj příběh)", "✋ Manuálně (Vyberu si přesný seznam sám)"]
+)
 
-# Paměť pro seznam šifer (celou knihu)
-if 'book_data' not in st.session_state:
-    st.session_state.book_data = []
-if 'book_theme' not in st.session_state:
-    st.session_state.book_theme = ""
+# Zobrazení UI podle zvoleného režimu
+if mod_vyberu.startswith("✋"):
+    vybrane_klicky = st.multiselect(
+        "Vyber šifry pro svou knihu (v pořadí, jak půjdou za sebou):",
+        list(PUZZLE_CATALOG.keys()),
+        format_func=lambda x: PUZZLE_CATALOG[x]['name']
+    )
+    pocet_sifer = len(vybrane_klicky)
+else:
+    pocet_sifer = st.slider("Kolik šifer (stran) má příběh mít?", min_value=3, max_value=12, value=6)
+    vybrane_klicky = [] # Bude doplněno chytře po kliknutí na tlačítko
+
+propojit_pribeh = st.checkbox("📖 Propojit šifry do jednoho souvislého příběhu (odškrtni pro nezávislé šifry)", value=True)
+
+if st.button("🧠 Vymyslet zadání", type="primary"):
+    
+    # Pokud je zapnutý automatický režim, necháme aplikaci namíchat ten nejlepší pestrý mix
+    if mod_vyberu.startswith("🤖"):
+        import random
+        # Náhodně vybereme z katalogu požadovaný počet unikátních šifer
+        vybrane_klicky = random.sample(list(PUZZLE_CATALOG.keys()), pocet_sifer)
+
+    if len(vybrane_klicky) > 0:
+        st.session_state.book_theme = tema
+        st.session_state.book_data = []
+        
+        # --- VARIANTA A: JEDEN SOUVISLÝ PŘÍBĚH ---
+        if propojit_pribeh:
+            with st.spinner(f"Gemini píše příběh a chytře do něj zakomponovává {pocet_sifer} šifer..."):
+                mechanics_list = "\n".join([f"Strana {i+1}: {PUZZLE_CATALOG[k]['name']} (Pravidlo: {PUZZLE_CATALOG[k]['instr']})" for i, k in enumerate(vybrane_klicky)])
+                
+                master_prompt = f"""
+                Jsi mistrný vypravěč a tvůrce dětských únikových knih. Téma: "{tema}".
+                Vytvoř ucelený a napínavý příběh pro knihu o {pocet_sifer} stranách. Děj musí logicky navazovat. Vymysli hlavního hrdinu.
+                Seznam šifer pro jednotlivé strany v přesném pořadí:
+                {mechanics_list}
+                DŮLEŽITÉ: Obrazové prompty musí dodržet tento styl: {MASTER_STYLE}
+                Vrať POUZE JSON pole objektů: [{{ "nadpis": "...", "zadani": "Poutavý kousek příběhu a zadání (česky)", "kod": "1234", "prompt": "Anglický prompt pro ilustraci" }}, ...]
+                """
+                res = client.models.generate_content(model='gemini-2.5-flash', contents=master_prompt)
+                story_data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
+                
+                for i, item in enumerate(story_data):
+                    item["type_name"] = PUZZLE_CATALOG[vybrane_klicky[i]]["name"]
+                st.session_state.book_data = story_data
+
+        # --- VARIANTA B: NEZÁVISLÉ ŠIFRY (Po jedné) ---
+        else:
+            progress_bar = st.progress(0)
+            with st.spinner("Gemini vymýšlí nezávislé hádanky..."):
+                for idx, key in enumerate(vybrane_klicky):
+                    template = PUZZLE_CATALOG[key]
+                    text_prompt = f"""
+                    Jsi tvůrce dětských únikovek. Téma: {tema}. Typ šifry: {template['instr']}
+                    DŮLEŽITÉ: Obrazový prompt musí dodržet styl: {MASTER_STYLE}
+                    Vrať POUZE JSON formát: {{"nadpis": "...", "zadani": "Kratky text pro hrace (cesky)", "kod": "1234", "prompt": "Anglický prompt"}}
+                    """
+                    res = client.models.generate_content(model='gemini-2.5-flash', contents=text_prompt)
+                    data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
+                    data["type_name"] = template["name"]
+                    st.session_state.book_data.append(data)
+                    progress_bar.progress((idx + 1) / len(vybrane_klicky))
+
+        st.success("✅ Hotovo! Zadání je připravené.")
+        st.rerun()
+    else:
+        st.warning("⚠️ V manuálním režimu musíš vybrat alespoň jednu šifru.")
 
 # ==========================================
 # 2. VIZUÁLNÍ STYL
