@@ -70,7 +70,7 @@ Clean solid white background. NO shadows, NO gradients, NO realism.
 PUZZLE_CATALOG = {
     "matching": {"name": "Přiřazování předmětů", "instr": "4 postavy a 4 předměty. Hráč je musí logicky spojit."},
     "logic_elimination": {"name": "Logická vyřazovačka", "instr": "4 dveře a 3 logické nápovědy. Zbydou jen jedny správné."},
-    "hidden_objects": {"name": "Skryté předměty", "instr": "Hledání 4 různých druhů předmětů v rušném obraze. Kód je jejich přesný počet."},
+    "hidden_objects": {"name": "Skryté předměty (Počítání)", "instr": "Počítání věcí na obrázku. DŮLEŽITÉ PRAVIDLO: Kód MUSÍ být číslo (např. '324'). Počet číslic v kódu se musí přesně rovnat počtu otázek v zadání! Pokud je kód '324', polož přesně 3 otázky: 1. Kolik je na obrázku X? 2. Kolik je tam Y? 3. Kolik je tam Z? Nevymýšlej si žádné fiktivní dveře nebo složité příběhy."},
     "fill_level": {"name": "Lektvary (Řazení)", "instr": "4 nádoby, každá jinak plná. Kód vznikne seřazením od nejplnější."},
     "shadows": {"name": "Stínové pexeso", "instr": "4 barevné předměty a jejich 4 černé stíny (zpřeházené). Hráč je spojí."},
     "pigpen_cipher": {"name": "Šifra symbolů", "instr": "Vymysli šifru se symboly. DŮLEŽITÉ: Místo abstraktních znaků použij JEDNODUCHÉ IKONY (např. slunce, mrak, hvězda, tlapka, list). V textu 'zadani' vypiš legendu (např. Slunce = A, Mrak = B). Do obrazového 'promptu' MUSÍŠ tyto konkrétní ikony anglicky vyjmenovat (např. 'tablet with drawings of a sun, a cloud, a star...'), aby je generátor nakreslil."},    "caesar": {"name": "Caesarova šifra (Posun)", "instr": "4-písmenné slovo posunuté v abecedě o +1 nebo -1 místo."},
