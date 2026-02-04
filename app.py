@@ -64,14 +64,40 @@ Clean solid white background. NO shadows, NO gradients, NO realism.
 
 PUZZLE_CATALOG = {
     "matching": {
-        "name": "Přiřazování v tabulce (Grid Matching)", 
-        "instr": "IGNORUJ POKYN PRO SLOVNÍ KÓD! Zde MUSÍ být kód POUZE ČÍSLO (např. '2314'). Počet číslic v kódu určuje počet řádků tabulky. NEPOPISUJ PRAVIDLA, VYTVOŘ TABULKU! Do textu 'zadani' vykresli pomocí Markdownu tabulku. První sloupec jsou postavy/profese. Další 3 sloupce (hlavičky 1, 2, 3) obsahují předměty. V každém řádku je právě jeden správný předmět, jehož číslo sloupce odpovídá číslici v tajném kódu.",
+        "name": "Přiřazování v tabulce (Grid Matching) – bez slov",
+        "instr": (
+            "CÍL: Výsledná šifra musí být řešitelná ČISTĚ Z OBRÁZKU (bez slov). "
+            "V obrázku NESMÍ být žádná písmena ani slova (žádný čitelný text). "
+            "ČÍSLICE JSOU POVOLENÉ a mohou být použité pro označení sloupců."
+            "\n\n"
+            "LAYOUT (PŘESNĚ): Vytvoř tabulku/mřížku se 4 řádky + 1 hlavičkový řádek. "
+            "V hlavičce jsou POUZE tři buňky s čísly 1, 2, 3 (žádné další hlavičky). "
+            "Pod hlavičkou jsou přesně 4 řádky. Každý řádek má vlevo 1 velkou buňku s postavou (ikona astronauta) "
+            "a vpravo přesně 3 buňky možností (sloupce 1/2/3). "
+            "Celkem tedy: 1 levý sloupec (postavy) + 3 sloupce možností (1–3). "
+            "NEsmi vzniknout žádný další sloupec (žádný samostatný sloupec pro nápovědu, žádné šipky jako oddělovače)."
+            "\n\n"
+            "NÁPOVĚDA: Nápověda/atribut musí být čistě ikonová a MUSÍ být umístěná UVNITŘ levé buňky řádku "
+            "(např. jako malý badge na helmě/postavě). Nápověda nesmí být samostatná buňka/sloupec, aby nerozbila mřížku."
+            "\n\n"
+            "OBSAH: V každém řádku jsou 3 obrázkové možnosti (předměty). Právě 1 je správně podle nápovědy."
+            "\n\n"
+            "KÓD: kód MUSÍ být pouze číslo složené z číslic 1–3. "
+            "Délka kódu = počet řádků (4). "
+            "Čti shora dolů: číslo sloupce, ve kterém je v daném řádku správný předmět."
+            "\n\n"
+            "ZADÁNÍ: do 'zadani' napiš jen velmi krátký popis v češtině (1 věta) pro člověka; "
+            "ale POČÍTEJ S TÍM, že ve finálním PDF se text nemusí použít (obrázek je primární)."
+            "\n\n"
+            "PROMPT: Anglický prompt musí explicitně vynutit tento layout, že NENÍ žádný extra sloupec pro clue, "
+            "a že digits 1,2,3 jsou jen v hlavičce sloupců."
+        ),
         "ukazka": """
         {
           "nadpis": "Kód k únikovému modulu",
-          "zadani": "Přiřaďte každému členu posádky jeho správné vybavení. Čísla sloupců, ve kterých se nachází správné předměty, tvoří tajný čtyřmístný kód (čtěte odshora dolů):\n\n| Profese | 1 | 2 | 3 |\n| :--- | :---: | :---: | :---: |\n| Medik (Lékař) | Hasicí přístroj | **Lékárnička** | Pánev |\n| Mechanik | Mikroskop | Kniha | **Hasák** |\n| Biolog | **Rostlina** | Skafandr | Peníz |\n| Kapitán | Kytara | **Mapa vesmíru** | Rybářský prut |",
+          "zadani": "Najdi pro každého astronauta správný předmět a přečti čísla sloupců shora dolů.",
           "kod": "2312",
-          "prompt": "A clean vector illustration of a puzzle grid on a spaceship screen. The left column has icons of astronaut heads. Three columns to the right are numbered 1, 2, 3. The grid cells contain various items: first aid kit, wrench, plant, map."
+          "prompt": "Cheerful clean vector illustration, thick outlines, flat vibrant colors, solid white background. A strict table grid: ONE left column for characters + THREE option columns. Header row: FIRST header cell above the left character column is empty (no text, no icon), then only the digits 1, 2, 3 centered above the three option columns (no other header text). Below the header: exactly 4 rows. Each row: the left cell contains a big astronaut head icon AND a small clue badge icon inside the same cell (e.g., red cross badge, wrench badge, leaf badge, star badge). To the right are exactly three item cells under columns 1, 2, 3. ABSOLUTELY NO WORDS OR LETTERS: no letters, no words, no readable text. Digits are allowed ONLY as the column header numbers 1, 2, 3 (no other numbers anywhere; do not write the code in the image). Do NOT add extra columns or separate clue column. Each row's clue badge must make exactly one of the three items obviously correct. Ensure the correct items correspond to the code 2312 from top row to bottom row."
         }
         """
     },
