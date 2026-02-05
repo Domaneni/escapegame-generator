@@ -202,128 +202,199 @@ with col1:
 # 4. ROZHRANÍ - FÁZE 2: EDITOR A PRODUKCE
 # ==========================================
 with col2:
+    # Kontrola, zda máme data
     if st.session_state.generated and st.session_state.book_data:
         st.header("2. Úprava a Generování")
         
+        # --- 🕵️‍♂️ RENTGEN (DEBUG) ---
+        # Tohle ti ukáže, co přesně AI poslala. Pokud je to tady prázdné, chyba je v Gemini.
+        with st.expander("🕵️‍♂️ Zobrazit surová data od AI (pro kontrolu)", expanded=False):
+            st.json(st.session_state.book_data)
+
         # --- EDITOR ---
         if manual_edit:
-            st.info("📝 Zde můžeš opravit cokoliv, co AI popletla. Až budeš spokojen, sjeď dolů a vytvoř PDF.")
+            st.info("📝 Zde uprav texty. Změny se ukládají automaticky.")
             
-            updated_data = []
+            # Procházíme data a vytváříme formuláře
+            # Používáme i jako index, aby se ID prvků nehádala
             for i, puz in enumerate(st.session_state.book_data):
-                with st.expander(f"Strana {i+1}: {puz.get('nadpis', 'Bez nadpisu')}", expanded=True):
-                    # Inputy
-                    new_nadpis = st.text_input(f"Nadpis #{i+1}", value=puz.get('nadpis', ''))
-                    new_kod = st.text_input(f"Kód #{i+1}", value=puz.get('kod', ''))
-                    new_zadani = st.text_area(f"Zadání (Markdown/Text) #{i+1}", value=puz.get('zadani', ''), height=150)
-                    new_prompt = st.text_area(f"Prompt pro obrázek (Anglicky) #{i+1}", value=puz.get('prompt', ''), height=100)
+                
+                # Získáme hodnoty bezpečně (pokud klíč chybí, vrátí prázdný řetězec)
+                # Zkoušíme i varianty s velkým písmenem, kdyby Gemini neposlechl
+                init_nadpis = puz.get('nadpis') or puz.get('Nadpis', '')
+                init_kod = puz.get('kod') or puz.get('Kod', '')
+                init_zadani = puz.get('zadani') or puz.get('Zadani', '')
+                init_prompt = puz.get('prompt') or puz.get('Prompt', '')
+
+                st.markdown(f"### Strana {i+1}")
+                with st.container(border=True):
+                    # DŮLEŽITÉ: Každý input má unikátní 'key'. 
+                    # Když ho změníš, hodnota se zapíše zpět do st.session_state.book_data
                     
-                    # Aktualizace dat v reálném čase
-                    puz['nadpis'] = new_nadpis
-                    puz['kod'] = new_kod
-                    puz['zadani'] = new_zadani
-                    puz['prompt'] = new_prompt
+                    new_nadpis = st.text_input(
+                        f"Nadpis strany {i+1}", 
+                        value=init_nadpis, 
+                        key=f"input_nadpis_{i}"
+                    )
                     
-                    # Možnost nahrát vlastní obrázek už tady
-                    st.markdown("👇 **Obrázek se vygeneruje z promptu výše, nebo nahraj vlastní:**")
-                    uploaded_img = st.file_uploader(f"Vlastní obrázek #{i+1}", key=f"up_{i}")
+                    c1, c2 = st.columns([1, 3])
+                    with c1:
+                        new_kod = st.text_input(
+                            f"Tajný kód #{i+1}", 
+                            value=init_kod, 
+                            key=f"input_kod_{i}"
+                        )
+                    with c2:
+                         st.info(f"Typ šifry: {puz.get('type_key', 'Neznámý')}")
+
+                    new_zadani = st.text_area(
+                        f"Text zadání #{i+1}", 
+                        value=init_zadani, 
+                        height=100,
+                        key=f"input_zadani_{i}"
+                    )
+                    
+                    new_prompt = st.text_area(
+                        f"Prompt pro obrázek (EN) #{i+1}", 
+                        value=init_prompt, 
+                        height=70,
+                        key=f"input_prompt_{i}"
+                    )
+
+                    # OKAMŽITÉ ULOŽENÍ ZMĚN DO SESSION STATE
+                    # Aby se to propsalo do PDF, musíme aktualizovat hlavní data
+                    st.session_state.book_data[i]['nadpis'] = new_nadpis
+                    st.session_state.book_data[i]['kod'] = new_kod
+                    st.session_state.book_data[i]['zadani'] = new_zadani
+                    st.session_state.book_data[i]['prompt'] = new_prompt
+                    
+                    st.markdown("👇 **Obrázek:**")
+                    uploaded_img = st.file_uploader(f"Nahrát vlastní (volitelné)", key=f"up_{i}")
                     if uploaded_img:
-                        puz['uploaded_image'] = uploaded_img
+                        st.session_state.book_data[i]['uploaded_image'] = uploaded_img
 
         st.markdown("---")
         
         # --- TLAČÍTKO PRO FINÁLNÍ GENERACI ---
-        if st.button("🚀 Potvrdit úpravy a Vygenerovat PDF", type="primary"):
-            
-            uploaded_images_map = {} # Pro uložení nahraných souborů
+        if st.button("🚀 Vygenerovat PDF", type="primary"):
             
             # Příprava fontů
             font_path = "fonts/DejaVuSans.ttf"
             font_bold_path = "fonts/DejaVuSans-Bold.ttf"
             if not os.path.exists(font_path):
-                st.error("Chyba: Chybí fonty!")
+                st.error("Chyba: Chybí fonty ve složce fonts/!")
                 st.stop()
 
-            # Inicializace PDF
             pdf = FPDF()
             pdf.add_font("DejaVu", "", font_path)
             pdf.add_font("DejaVu", "B", font_bold_path)
 
-            progress_bar = st.progress(0)
             status_text = st.empty()
+            progress_bar = st.progress(0)
 
             for i, puz in enumerate(st.session_state.book_data):
-                status_text.text(f"Zpracovávám stranu {i+1}/{len(st.session_state.book_data)}...")
+                status_text.text(f"Tisknu stranu {i+1}...")
                 
                 pdf.add_page()
                 
-                # --- DETEKCE STYLU ---
+                # --- LOGIKA STYLU (TABULKA vs TEXT) ---
                 is_grid_layout = "|" in puz['zadani'] and "---" in puz['zadani']
                 
                 # 1. NADPIS
-                pdf.set_xy(10, 15)
-                pdf.set_font("DejaVu", "B", 24)
+                pdf.set_xy(10, 20)
+                pdf.set_font("DejaVu", "B", 26)
                 pdf.set_text_color(0, 0, 0)
                 pdf.cell(0, 15, puz['nadpis'], ln=True, align="C")
                 
-                aktualni_y = 35
+                aktualni_y = 45
 
-                # 2. ZADÁNÍ (Tabulka vs Text)
+                # 2. ZADÁNÍ
                 if is_grid_layout:
-                    # ... (Vykreslení tabulky - stejný kód jako minule) ...
-                    # Pro stručnost zkráceno, sem přijde logika parsování tabulky
+                    # Rozparsování Markdown tabulky pro PDF
                     pdf.set_font("DejaVu", "", 12)
-                    clean_text = puz['zadani'].replace("**", "")
-                    pdf.multi_cell(180, 6, clean_text, align="C") # Zjednodušený fallback
-                    aktualni_y = pdf.get_y() + 10
+                    lines = puz['zadani'].split('\n')
+                    table_data = []
+                    intro_text = ""
+                    
+                    for line in lines:
+                        if "|" in line:
+                            cells = [c.strip() for c in line.strip().strip('|').split('|')]
+                            if "---" not in cells[0]: table_data.append(cells)
+                        else:
+                            if line.strip(): intro_text += line + "\n"
+                    
+                    if intro_text:
+                        pdf.multi_cell(180, 6, intro_text, align="C")
+                        aktualni_y = pdf.get_y() + 5
+                        
+                    if table_data:
+                        col_w = 180 / len(table_data[0])
+                        row_h = 14 # Vyšší řádky
+                        pdf.set_x(15)
+                        
+                        # Hlavička
+                        pdf.set_font("DejaVu", "B", 12)
+                        for cell in table_data[0]:
+                            pdf.cell(col_w, row_h, cell, border=1, align="C")
+                        pdf.ln()
+                        
+                        # Tělo tabulky
+                        pdf.set_font("DejaVu", "", 12)
+                        for row in table_data[1:]:
+                            pdf.set_x(15)
+                            for cell in row:
+                                txt = cell.replace("**", "")
+                                is_bold = "**" in cell
+                                pdf.set_font("DejaVu", "B" if is_bold else "", 12)
+                                pdf.cell(col_w, row_h, txt, border=1, align="C")
+                            pdf.ln()
+                        aktualni_y = pdf.get_y() + 10
+
                 else:
+                    # Klasický text
                     pdf.set_xy(15, aktualni_y)
                     pdf.set_font("DejaVu", "", 14)
                     clean_text = puz['zadani'].replace("**", "")
                     pdf.multi_cell(180, 8, clean_text, align="C")
-                    aktualni_y = pdf.get_y() + 5
+                    aktualni_y = pdf.get_y() + 10
 
-                # 3. OBRÁZEK (Generování nebo Použití nahraného)
-                # Pokud uživatel nahrál obrázek v editoru:
-                img_data = puz.get('uploaded_image')
-                
-                # Pokud nenahrál, použijeme prompt a placeholder (nebo zde zapojíme Pollinations/DALL-E)
-                # V této verzi pro "bezpečnost" a "rychlost" použijeme placeholder, 
-                # pokud chceš generování, musíme sem vrátit logiku stahování.
-                # PRO DEMONSTRACI EDITORU POUŽIJEME JEDNODUCHÝ PLACEHOLDER NEBO UPLOAD.
-                
-                if img_data:
+                # 3. OBRÁZEK
+                uploaded_file = puz.get('uploaded_image')
+                if uploaded_file:
                     temp_img = f"temp_{i}.png"
-                    with open(temp_img, "wb") as f: f.write(img_data.getbuffer())
+                    with open(temp_img, "wb") as f: f.write(uploaded_file.getbuffer())
                     
-                    pdf.image(temp_img, x=25, y=aktualni_y, w=160)
+                    # Logika pro umístění
+                    space_left = 240 - aktualni_y
+                    if space_left > 50:
+                        pdf.image(temp_img, x=25, y=aktualni_y, w=160)
+                    
                     os.remove(temp_img)
                 else:
-                    # Zde by bylo volání generátoru obrázků. 
-                    # Abychom to nekomplikovali, vypíšeme sem Prompt, aby sis ho mohl zkopírovat do Midjourney :)
-                    # NEBO sem vrať kód pro Pollinations.ai z minulé verze.
+                    # Placeholder, když není obrázek
                     pdf.set_xy(25, aktualni_y)
                     pdf.set_font("DejaVu", "", 10)
-                    pdf.set_text_color(100, 100, 100)
-                    pdf.multi_cell(160, 5, f"(Zde by byl obrázek dle promptu):\n{puz['prompt']}", border=1, align="C")
+                    pdf.set_text_color(150, 150, 150)
+                    pdf.multi_cell(160, 10, f"(Obrázek chybí - zkopíruj si prompt):\n{puz['prompt']}", border=1, align="C")
 
-                # 4. KÓD
+                # 4. KÓD (Styl Benny - Závorky)
                 pdf.set_xy(10, 255)
                 pdf.set_font("DejaVu", "B", 20)
                 pdf.set_text_color(0, 0, 0)
+                
                 delka = len(str(puz['kod']))
                 zavorky = "   ".join(["[      ]"] * delka)
                 pdf.cell(0, 10, f"TAJNÝ KÓD:   {zavorky}", ln=True, align="C")
                 
                 progress_bar.progress((i + 1) / len(st.session_state.book_data))
 
-            # FINÁLNÍ EXPORT
+            # EXPORT
             pdf_name = f"Unikovka_{sanitize_filename(st.session_state.book_theme)}.pdf"
             pdf.output(pdf_name)
             
             status_text.text("✅ Hotovo!")
             with open(pdf_name, "rb") as f:
-                st.download_button("📥 Stáhnout Finální PDF", f, file_name=pdf_name, mime="application/pdf")
+                st.download_button("📥 Stáhnout PDF", f, file_name=pdf_name, mime="application/pdf")
 
     elif not st.session_state.generated:
-        st.info("👈 Začni tím, že vlevo vybereš téma a klikneš na 'Krok 1'.")
+        st.info("👈 Vlevo klikni na 'Krok 1' pro vygenerování zadání.")
